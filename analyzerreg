@@ -1,0 +1,76 @@
+#!/usr/bin/perl -w
+use lib "/usr/local/netfpga/lib/Perl5";
+use strict;
+
+# MAC register addresses (match analyzer.v and analyzer.xml)
+my $REG_SET_A   = 0x2000300;
+my $REG_SET_B   = 0x2000304;
+my $REG_SET_C   = 0x2000308;
+my $REG_RST     = 0x200030C;
+my $REG_RESULT  = 0x2000310;
+
+# Register write helper
+sub regwrite {
+   my( $addr, $value ) = @_;
+   my $cmd = sprintf("regwrite 0x%08x 0x%08x", $addr, $value);
+   my $result = `$cmd`;
+}
+
+# Register read helper
+sub regread {
+   my( $addr ) = @_;
+   my $cmd = sprintf("regread 0x%08x", $addr);
+   my @out = `$cmd`;
+   my $result = $out[0];
+   if ($result =~ m/Reg (0x[0-9a-f]+) \((\d+)\):\s+(0x[0-9a-f]+) \((\d+)\)/) {
+      $result = $3;
+   }
+   return $result;
+}
+
+# Parse arguments
+my $numargs = $#ARGV + 1;
+if ($numargs < 1) {
+   print "Usage: ./analyzerreg_mac.pl [setA|setB|setC|setRst|readResult|debug] [hex_value]\n";
+   exit(1);
+}
+my $cmd    = $ARGV[0];
+my $in_val = $ARGV[1];
+
+# Convert hex string to numeric
+if (defined $in_val && ($in_val =~ /^0x/i || $in_val =~ /^[0-9a-fA-F]+$/)) {
+   $in_val = hex($in_val);
+}
+
+# Command logic
+if ($cmd eq "setA") {
+   printf("Set operand A to 0x%04x\n", $in_val);
+   regwrite($REG_SET_A, $in_val);
+}
+elsif ($cmd eq "setB") {
+   printf("Set operand B to 0x%04x\n", $in_val);
+   regwrite($REG_SET_B, $in_val);
+}
+elsif ($cmd eq "setC") {
+   printf("Set operand C to 0x%04x\n", $in_val);
+   regwrite($REG_SET_C, $in_val);
+}
+elsif ($cmd eq "setRst") {
+   printf("Set reset to %d\n", $in_val);
+   regwrite($REG_RST, $in_val);
+}
+elsif ($cmd eq "readResult") {
+   my $result = regread($REG_RESULT);
+   print "MAC Result: $result\n";
+}
+elsif ($cmd eq "debug") {
+   print "A:     ", regread($REG_SET_A), "\n";
+   print "B:     ", regread($REG_SET_B), "\n";
+   print "C:     ", regread($REG_SET_C), "\n";
+   print "RST:   ", regread($REG_RST), "\n";
+   print "Result:", regread($REG_RESULT), "\n";
+}
+else {
+   print "Unrecognized command $cmd\n";
+   exit(1);
+}
